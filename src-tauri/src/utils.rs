@@ -10,6 +10,7 @@ pub fn openclaw_command() -> std::process::Command {
         const CREATE_NO_WINDOW: u32 = 0x08000000;
         let mut cmd = std::process::Command::new("cmd");
         cmd.arg("/c").arg("openclaw");
+        cmd.env("PATH", crate::commands::enhanced_path());
         cmd.creation_flags(CREATE_NO_WINDOW);
         cmd
     }
@@ -28,6 +29,7 @@ pub fn openclaw_command_async() -> tokio::process::Command {
         const CREATE_NO_WINDOW: u32 = 0x08000000;
         let mut cmd = tokio::process::Command::new("cmd");
         cmd.arg("/c").arg("openclaw");
+        cmd.env("PATH", crate::commands::enhanced_path());
         cmd.creation_flags(CREATE_NO_WINDOW);
         cmd
     }

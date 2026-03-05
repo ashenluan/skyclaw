@@ -10,12 +10,39 @@
 export function diagnoseInstallError(errStr) {
   const s = errStr.toLowerCase()
 
+  // git SSH 权限问题（有 git 但没配 SSH Key）
+  if (s.includes('permission denied (publickey)') || s.includes('ssh://git@github')) {
+    return {
+      title: '安装失败 — Git SSH 权限',
+      hint: '依赖包用了 SSH 协议拉取代码，但你没配 GitHub SSH Key。运行以下命令改用 HTTPS：',
+      command: 'git config --global url."https://github.com/".insteadOf ssh://git@github.com/',
+    }
+  }
+
   // git 未安装（exit 128 + access rights）
   if (s.includes('code 128') || s.includes('exit 128') || s.includes('access rights')) {
     return {
       title: '安装失败 — 需要安装 Git',
       hint: '部分依赖需要通过 Git 下载。请先安装 Git 后重试。',
       command: '下载 Git: https://git-scm.com/downloads',
+    }
+  }
+
+  // EPERM（文件被占用/权限问题）
+  if (s.includes('eperm') || s.includes('operation not permitted')) {
+    return {
+      title: '安装失败 — 文件被占用',
+      hint: '有文件被锁定无法写入。先关闭所有 ClawPanel 和 Node.js 进程，然后在管理员终端手动安装：',
+      command: 'npm install -g @qingchencloud/openclaw-zh --registry https://registry.npmmirror.com',
+    }
+  }
+
+  // MODULE_NOT_FOUND（安装不完整）
+  if (s.includes('module_not_found') || s.includes('cannot find module')) {
+    return {
+      title: '安装不完整',
+      hint: '上次安装可能中断了。先清理残留再重装：',
+      command: 'npm cache clean --force && npm install -g @qingchencloud/openclaw-zh --registry https://registry.npmmirror.com',
     }
   }
 

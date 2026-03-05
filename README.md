@@ -294,11 +294,29 @@ open /Applications/ClawPanel.app
 
 ### Windows 安装报 exit 128 (access rights)
 
-npm 依赖需要 Git，但系统未安装。请先安装 [Git for Windows](https://git-scm.com/download/win)，安装后重启 ClawPanel。
+npm 依赖需要 Git。如果已装 Git 但仍报 128，是因为依赖用了 SSH 协议拉代码但你没配 GitHub SSH Key。运行以下命令改用 HTTPS：
+
+```powershell
+git config --global url."https://github.com/".insteadOf ssh://git@github.com/
+git config --global url."https://github.com/".insteadOf git@github.com:
+```
+
+没装 Git 的请先安装 [Git for Windows](https://git-scm.com/download/win)。**v0.4.2+ 已自动配置 HTTPS 模式。**
+
+### Windows 安装报 EPERM (operation not permitted)
+
+文件被其他进程锁定。先关闭 ClawPanel 和所有 Node.js 进程，以管理员身份打开 PowerShell 重装：
+
+```powershell
+npm cache clean --force
+npm install -g @qingchencloud/openclaw-zh --registry https://registry.npmmirror.com
+```
 
 ### 安装后 Node.js 检测不到（Windows）
 
-安装 Node.js 后需要重启 ClawPanel（或重启电脑），新的 PATH 环境变量才能生效。
+安装 Node.js 后需要**重启 ClawPanel**，新的 PATH 环境变量才能生效。
+
+如果安装在非默认路径（如 `D:\nodejs`、`F:\AI\Node`），请确认该目录已加入系统 PATH 环境变量。**v0.4.2+ 已自动扫描常见安装路径。**
 
 ## 相关项目
 

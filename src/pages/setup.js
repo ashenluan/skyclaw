@@ -86,11 +86,24 @@ function renderSteps(page, { node, cliOk, config }) {
           </p>
           <a class="btn btn-primary btn-sm" href="https://nodejs.org/" target="_blank" rel="noopener">下载 Node.js</a>
           <span class="form-hint" style="margin-left:8px">安装后点击「重新检测」</span>
-          ${isMacPlatform() ? `
           <div style="margin-top:var(--space-sm);padding:8px 12px;background:var(--bg-tertiary);border-radius:var(--radius-sm);font-size:var(--font-size-xs);color:var(--text-secondary);line-height:1.6">
-            <strong>已经装了但检测不到？</strong> macOS 上从 Finder 启动可能找不到 Node.js。试试关掉 ClawPanel 后从终端启动：<br>
-            <code style="background:var(--bg-secondary);padding:2px 6px;border-radius:3px;user-select:all">open /Applications/ClawPanel.app</code>
-          </div>` : ''}`
+            <strong>已经装了但检测不到？</strong>
+            ${isMacPlatform()
+              ? `macOS 上从 Finder 启动可能找不到 Node.js。试试关掉 ClawPanel 后从终端启动：<br>
+                 <code style="background:var(--bg-secondary);padding:2px 6px;border-radius:3px;user-select:all">open /Applications/ClawPanel.app</code>`
+              : `安装 Node.js 后需要<strong>重启 ClawPanel</strong>，新的环境变量才能生效。`
+            }
+            <div style="margin-top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+              <button class="btn btn-secondary btn-sm" id="btn-scan-node" style="font-size:11px;padding:3px 10px">🔍 自动扫描</button>
+              <span style="color:var(--text-tertiary)">或手动指定路径：</span>
+            </div>
+            <div style="margin-top:6px;display:flex;gap:6px">
+              <input id="input-node-path" type="text" placeholder="${isMacPlatform() ? '/usr/local/bin' : 'F:\\\\AI\\\\Node'}"
+                style="flex:1;padding:4px 8px;border:1px solid var(--border-primary);border-radius:var(--radius-sm);background:var(--bg-secondary);color:var(--text-primary);font-size:11px;font-family:monospace">
+              <button class="btn btn-primary btn-sm" id="btn-check-path" style="font-size:11px;padding:3px 10px">检测</button>
+            </div>
+            <div id="scan-result" style="margin-top:6px;display:none"></div>
+          </div>`
       }
     </div>
   `
@@ -172,6 +185,66 @@ function bindEvents(page, nodeOk) {
   // 进入面板
   page.querySelector('#btn-enter')?.addEventListener('click', () => {
     window.location.hash = '/dashboard'
+  })
+
+  // 自动扫描 Node.js
+  page.querySelector('#btn-scan-node')?.addEventListener('click', async () => {
+    const btn = page.querySelector('#btn-scan-node')
+    const resultEl = page.querySelector('#scan-result')
+    btn.disabled = true
+    btn.textContent = '扫描中...'
+    resultEl.style.display = 'block'
+    resultEl.innerHTML = '<span style="color:var(--text-tertiary)">正在扫描常见安装路径...</span>'
+    try {
+      const results = await api.scanNodePaths()
+      if (results.length === 0) {
+        resultEl.innerHTML = '<span style="color:var(--warning)">未找到 Node.js 安装，请手动指定路径或下载安装。</span>'
+      } else {
+        resultEl.innerHTML = results.map(r =>
+          `<div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+            <span style="color:var(--success)">✓</span>
+            <code style="flex:1;background:var(--bg-secondary);padding:2px 6px;border-radius:3px;font-size:11px">${r.path}</code>
+            <span style="font-size:11px;color:var(--text-tertiary)">${r.version}</span>
+            <button class="btn btn-primary btn-sm btn-use-path" data-path="${r.path}" style="font-size:10px;padding:2px 8px">使用</button>
+          </div>`
+        ).join('')
+        resultEl.querySelectorAll('.btn-use-path').forEach(b => {
+          b.addEventListener('click', async () => {
+            await api.saveCustomNodePath(b.dataset.path)
+            toast('Node.js 路径已保存，正在重新检测...', 'success')
+            setTimeout(() => window.location.reload(), 500)
+          })
+        })
+      }
+    } catch (e) {
+      resultEl.innerHTML = `<span style="color:var(--danger)">扫描失败: ${e}</span>`
+    } finally {
+      btn.disabled = false
+      btn.textContent = '🔍 自动扫描'
+    }
+  })
+
+  // 手动指定路径检测
+  page.querySelector('#btn-check-path')?.addEventListener('click', async () => {
+    const input = page.querySelector('#input-node-path')
+    const resultEl = page.querySelector('#scan-result')
+    const dir = input?.value?.trim()
+    if (!dir) { toast('请输入 Node.js 安装目录', 'warning'); return }
+    resultEl.style.display = 'block'
+    resultEl.innerHTML = '<span style="color:var(--text-tertiary)">检测中...</span>'
+    try {
+      const result = await api.checkNodeAtPath(dir)
+      if (result.installed) {
+        await api.saveCustomNodePath(dir)
+        resultEl.innerHTML = `<span style="color:var(--success)">✓ 找到 Node.js ${result.version}，路径已保存</span>`
+        toast('Node.js 路径已保存，正在重新检测...', 'success')
+        setTimeout(() => window.location.reload(), 500)
+      } else {
+        resultEl.innerHTML = `<span style="color:var(--warning)">该目录下未找到 node 可执行文件，请确认路径正确。</span>`
+      }
+    } catch (e) {
+      resultEl.innerHTML = `<span style="color:var(--danger)">检测失败: ${e}</span>`
+    }
   })
 
   // 一键安装

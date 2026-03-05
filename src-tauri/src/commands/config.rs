@@ -32,6 +32,7 @@ fn npm_command() -> Command {
         const CREATE_NO_WINDOW: u32 = 0x08000000;
         let mut cmd = Command::new("cmd");
         cmd.args(["/c", "npm", "--registry", &registry]);
+        cmd.env("PATH", super::enhanced_path());
         cmd.creation_flags(CREATE_NO_WINDOW);
         cmd
     }
@@ -510,6 +511,15 @@ pub async fn upgrade_openclaw(app: tauri::AppHandle, source: String) -> Result<S
     let old_pkg = npm_package_name(&current_source);
     let need_uninstall_old = current_source != source;
 
+    // 自动配置 git 使用 HTTPS 替代 SSH，避免用户没配 SSH Key 导致依赖安装失败
+    let _ = app.emit("upgrade-log", "配置 Git HTTPS 模式...");
+    let _ = Command::new("git")
+        .args(["config", "--global", "url.https://github.com/.insteadOf", "ssh://git@github.com/"])
+        .output();
+    let _ = Command::new("git")
+        .args(["config", "--global", "url.https://github.com/.insteadOf", "git@github.com:"])
+        .output();
+
     let _ = app.emit("upgrade-log", format!("$ npm install -g {pkg}"));
     let _ = app.emit("upgrade-progress", 10);
 
@@ -636,7 +646,6 @@ pub fn check_node() -> Result<Value, String> {
     let mut result = serde_json::Map::new();
     let mut cmd = Command::new("node");
     cmd.arg("--version");
-    #[cfg(not(target_os = "windows"))]
     cmd.env("PATH", super::enhanced_path());
     #[cfg(target_os = "windows")]
     cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
@@ -652,6 +661,137 @@ pub fn check_node() -> Result<Value, String> {
         }
     }
     Ok(Value::Object(result))
+}
+
+/// 在指定路径下检测 node 是否存在
+#[tauri::command]
+pub fn check_node_at_path(node_dir: String) -> Result<Value, String> {
+    let dir = std::path::PathBuf::from(&node_dir);
+    #[cfg(target_os = "windows")]
+    let node_bin = dir.join("node.exe");
+    #[cfg(not(target_os = "windows"))]
+    let node_bin = dir.join("node");
+
+    let mut result = serde_json::Map::new();
+    if !node_bin.exists() {
+        result.insert("installed".into(), Value::Bool(false));
+        result.insert("version".into(), Value::Null);
+        return Ok(Value::Object(result));
+    }
+
+    let mut cmd = Command::new(&node_bin);
+    cmd.arg("--version");
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(0x08000000);
+    match cmd.output() {
+        Ok(o) if o.status.success() => {
+            let ver = String::from_utf8_lossy(&o.stdout).trim().to_string();
+            result.insert("installed".into(), Value::Bool(true));
+            result.insert("version".into(), Value::String(ver));
+            result.insert("path".into(), Value::String(node_dir));
+        }
+        _ => {
+            result.insert("installed".into(), Value::Bool(false));
+            result.insert("version".into(), Value::Null);
+        }
+    }
+    Ok(Value::Object(result))
+}
+
+/// 扫描常见路径，返回所有找到的 Node.js 安装
+#[tauri::command]
+pub fn scan_node_paths() -> Result<Value, String> {
+    let mut found: Vec<Value> = vec![];
+    let home = dirs::home_dir().unwrap_or_default();
+
+    let mut candidates: Vec<String> = vec![];
+
+    #[cfg(target_os = "windows")]
+    {
+        let pf = std::env::var("ProgramFiles").unwrap_or_else(|_| r"C:\Program Files".into());
+        let pf86 = std::env::var("ProgramFiles(x86)")
+            .unwrap_or_else(|_| r"C:\Program Files (x86)".into());
+        let localappdata = std::env::var("LOCALAPPDATA").unwrap_or_default();
+        let appdata = std::env::var("APPDATA").unwrap_or_default();
+
+        candidates.push(format!(r"{}\nodejs", pf));
+        candidates.push(format!(r"{}\nodejs", pf86));
+        if !localappdata.is_empty() {
+            candidates.push(format!(r"{}\Programs\nodejs", localappdata));
+        }
+        if !appdata.is_empty() {
+            candidates.push(format!(r"{}\npm", appdata));
+        }
+        candidates.push(format!(r"{}\.volta\bin", home.display()));
+        candidates.push(format!(r"{}\.nvm", home.display()));
+
+        for drive in &["C", "D", "E", "F", "G"] {
+            candidates.push(format!(r"{}:\nodejs", drive));
+            candidates.push(format!(r"{}:\Node", drive));
+            candidates.push(format!(r"{}:\Node.js", drive));
+            candidates.push(format!(r"{}:\Program Files\nodejs", drive));
+            // 扫描常见 AI 工具目录
+            candidates.push(format!(r"{}:\AI\Node", drive));
+            candidates.push(format!(r"{}:\AI\nodejs", drive));
+            candidates.push(format!(r"{}:\Dev\nodejs", drive));
+            candidates.push(format!(r"{}:\Tools\nodejs", drive));
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        candidates.push("/usr/local/bin".into());
+        candidates.push("/opt/homebrew/bin".into());
+        candidates.push(format!("{}/.nvm/current/bin", home.display()));
+        candidates.push(format!("{}/.volta/bin", home.display()));
+        candidates.push(format!("{}/.nodenv/shims", home.display()));
+        candidates.push(format!("{}/.fnm/current/bin", home.display()));
+        candidates.push(format!("{}/n/bin", home.display()));
+    }
+
+    for dir in &candidates {
+        let path = std::path::Path::new(dir);
+        #[cfg(target_os = "windows")]
+        let node_bin = path.join("node.exe");
+        #[cfg(not(target_os = "windows"))]
+        let node_bin = path.join("node");
+
+        if node_bin.exists() {
+            let mut cmd = Command::new(&node_bin);
+            cmd.arg("--version");
+            #[cfg(target_os = "windows")]
+            cmd.creation_flags(0x08000000);
+            if let Ok(o) = cmd.output() {
+                if o.status.success() {
+                    let ver = String::from_utf8_lossy(&o.stdout).trim().to_string();
+                    let mut entry = serde_json::Map::new();
+                    entry.insert("path".into(), Value::String(dir.clone()));
+                    entry.insert("version".into(), Value::String(ver));
+                    found.push(Value::Object(entry));
+                }
+            }
+        }
+    }
+
+    Ok(Value::Array(found))
+}
+
+/// 保存用户自定义的 Node.js 路径到 ~/.openclaw/clawpanel.json
+#[tauri::command]
+pub fn save_custom_node_path(node_dir: String) -> Result<(), String> {
+    let config_path = super::openclaw_dir().join("clawpanel.json");
+    let mut config: serde_json::Map<String, Value> = if config_path.exists() {
+        let content =
+            std::fs::read_to_string(&config_path).map_err(|e| format!("读取配置失败: {e}"))?;
+        serde_json::from_str(&content).unwrap_or_default()
+    } else {
+        serde_json::Map::new()
+    };
+    config.insert("nodePath".into(), Value::String(node_dir));
+    let json = serde_json::to_string_pretty(&Value::Object(config))
+        .map_err(|e| format!("序列化失败: {e}"))?;
+    std::fs::write(&config_path, json).map_err(|e| format!("写入配置失败: {e}"))?;
+    Ok(())
 }
 
 #[tauri::command]

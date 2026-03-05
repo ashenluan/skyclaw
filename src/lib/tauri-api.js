@@ -287,6 +287,9 @@ export const api = {
   // 安装/部署
   checkInstallation: () => cachedInvoke('check_installation', {}, 60000),
   checkNode: () => cachedInvoke('check_node', {}, 60000),
+  checkNodeAtPath: (nodeDir) => invoke('check_node_at_path', { node_dir: nodeDir }),
+  scanNodePaths: () => invoke('scan_node_paths'),
+  saveCustomNodePath: (nodeDir) => invoke('save_custom_node_path', { node_dir: nodeDir }),
   getDeployConfig: () => cachedInvoke('get_deploy_config'),
   patchModelVision: () => invoke('patch_model_vision'),
   checkPanelUpdate: () => invoke('check_panel_update'),
