@@ -382,7 +382,7 @@ mod platform {
         );
 
         std::process::Command::new("cmd")
-            .args(["/c", &start_cmd])
+            .raw_arg(format!("/c {}", start_cmd))
             .env("PATH", &enhanced)
             .creation_flags(CREATE_NO_WINDOW)
             .spawn()
