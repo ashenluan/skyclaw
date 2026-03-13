@@ -2339,6 +2339,44 @@ const handlers = {
     return { installed: fs.existsSync(CONFIG_PATH), path: OPENCLAW_DIR, platform: isMac ? 'macos' : process.platform, inDocker }
   },
 
+  check_git() {
+    try {
+      const ver = execSync('git --version', { encoding: 'utf8', timeout: 5000, windowsHide: true }).trim()
+      const match = ver.match(/(\d+\.\d+[\.\d]*)/)
+      return { installed: true, version: match ? match[1] : ver }
+    } catch {
+      return { installed: false }
+    }
+  },
+
+  auto_install_git() {
+    // Web 模式下不自动安装系统软件，返回指引
+    throw new Error('Web 部署模式下请手动安装 Git：\n- Ubuntu/Debian: sudo apt install git\n- CentOS/RHEL: sudo yum install git\n- macOS: xcode-select --install')
+  },
+
+  configure_git_https() {
+    try {
+      const cmds = [
+        'git config --global url."https://github.com/".insteadOf "git@github.com:"',
+        'git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"',
+        'git config --global url."https://github.com/".insteadOf "git://github.com/"',
+      ]
+      for (const cmd of cmds) execSync(cmd, { timeout: 5000, windowsHide: true })
+      return '已配置 Git HTTPS 替代 SSH'
+    } catch (e) {
+      throw new Error('配置失败: ' + (e.message || e))
+    }
+  },
+
+  guardian_status() {
+    // Web 模式没有 Guardian 守护进程
+    return { enabled: false, giveUp: false }
+  },
+
+  invalidate_path_cache() {
+    return true
+  },
+
   check_node() {
     try {
       const ver = execSync('node --version 2>&1', { windowsHide: true }).toString().trim()
