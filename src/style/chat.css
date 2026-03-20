@@ -304,6 +304,34 @@
 .hl-func { color: #61afef; }
 .hl-type { color: #e5c07b; }
 
+/* Markdown 表格 */
+.msg-ai .msg-bubble table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 13px;
+}
+
+.msg-ai .msg-bubble th,
+.msg-ai .msg-bubble td {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.msg-ai .msg-bubble th {
+  background: var(--bg-tertiary);
+  font-weight: 600;
+}
+
+.msg-ai .msg-bubble tr:nth-child(even) {
+  background: var(--bg-hover);
+}
+
+.msg-ai .msg-bubble tr:hover {
+  background: rgba(99, 102, 241, 0.08);
+}
+
 /* 行内代码 */
 .msg-ai .msg-bubble > code {
   background: var(--bg-hover, rgba(255,255,255,0.08));
