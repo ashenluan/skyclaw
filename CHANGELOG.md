@@ -5,6 +5,32 @@
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.9.9] - 2026-03-24
+
+### 新功能 (Features)
+
+- **完整 i18n 国际化** — 全部页面使用 t() 国际化，侧边栏语言切换器（可搜索上拉下拉框），支持 11 种语言
+- **多语言 README** — 新增日本語、한국어、繁體中文、Tiếng Việt、Español、Português、Русский、Français、Deutsch 共 9 个 README 文件
+- **模型配置 Ollama 原生支持** — API 类型新增 `ollama` 选项，自动跳过 /v1 追加，助手页面显示 Ollama 专属提示
+
+### 修复 (Fixes)
+
+- **Cron 投递参数格式** — delivery mode 从错误的 `push` 修正为 `announce`，移除无效的 `to` 字段 (fixes #141)
+- **Cron 单渠道用户** — 允许单渠道用户选择投递渠道（之前 ≤1 个渠道会隐藏选择器）
+- **Cron 编辑保留投递** — 任务编辑时正确保留 delivery 字段
+- **Ollama 配置覆盖** — ClawPanel 不再将用户手动配置的 `api: "ollama"` 覆盖为 `openai-completions` (fixes #140)
+- **版本检测错误** — Windows 下优先通过 CLI 路径判断安装来源，默认返回 `official` 而非 `chinese` (fixes #139)
+- **版本号读取** — npm 全局目录按活跃 CLI 来源决定检查顺序，避免读到非活跃包的旧版本号
+- **助手 API 类型一致性** — `normalizeApiType` 统一 `google-generative-ai` 键名，修复 `requiresApiKey` 判断
+
+### 改进 (Improvements)
+
+- **官网品牌更新** — 公益 AI 接口 → 晴辰云 AI 接口，新增合规声明
+- **官网 SEO 优化** — meta 标签新增晴辰云、晴辰助手、Discord、多语言等关键词
+- **官网 Footer** — 新增 11 语言 README 链接行
+- **元宝派链接更新** — 全站更新为新链接
+- **移除独立安装包推广** — 下载区移除过时的 OpenClaw 独立安装包推广块
+
 ## [0.9.8] - 2026-03-23
 
 ### 新功能 (Features)
