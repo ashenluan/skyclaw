@@ -267,7 +267,7 @@ fn build_enhanced_path() -> String {
                     .flatten()
                     .filter(|e| e.path().join("bin").is_dir())
                     .collect();
-                dirs.sort_by(|a, b| b.file_name().cmp(&a.file_name()));
+                dirs.sort_by_key(|b| std::cmp::Reverse(b.file_name()));
                 for entry in dirs {
                     extra.push(entry.path().join("bin").to_string_lossy().to_string());
                 }
@@ -285,7 +285,7 @@ fn build_enhanced_path() -> String {
                     .flatten()
                     .filter(|e| e.path().join("installation/bin").is_dir())
                     .collect();
-                dirs.sort_by(|a, b| b.file_name().cmp(&a.file_name()));
+                dirs.sort_by_key(|b| std::cmp::Reverse(b.file_name()));
                 for entry in dirs {
                     extra.push(
                         entry
@@ -339,7 +339,7 @@ fn build_enhanced_path() -> String {
                     .flatten()
                     .filter(|e| e.path().join("bin").is_dir())
                     .collect();
-                dirs.sort_by(|a, b| b.file_name().cmp(&a.file_name()));
+                dirs.sort_by_key(|b| std::cmp::Reverse(b.file_name()));
                 for entry in dirs {
                     extra.push(entry.path().join("bin").to_string_lossy().to_string());
                 }
@@ -357,7 +357,7 @@ fn build_enhanced_path() -> String {
                     .flatten()
                     .filter(|e| e.path().join("installation/bin").is_dir())
                     .collect();
-                dirs.sort_by(|a, b| b.file_name().cmp(&a.file_name()));
+                dirs.sort_by_key(|b| std::cmp::Reverse(b.file_name()));
                 for entry in dirs {
                     extra.push(
                         entry
